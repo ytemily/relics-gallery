@@ -8,8 +8,11 @@
 </head>
 <body>
     <header>
-        <a href="{{ url_for('homepage') }}#explore" style="text-decoration: none; color: inherit;">
-            <div class="logo">[Logo] 遗珍图库</div>
+        <a href="{{ url_for('random_browse') }}" style="text-decoration: none; color: inherit;">
+            <div class="logo">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="site-logo">
+                <span>遗珍图库</span>
+            </div>
         </a>
         <div class="search-bar">
             <form action="{{ url_for('search') }}" method="GET" style="display: flex; align-items: center; gap: 10px;">
@@ -18,9 +21,9 @@
             </form>
         </div>
         <div class="nav-links">
-            <a href="{{ url_for('browse_cultures') }}">文化浏览</a>
-            <a href="{{ url_for('browse_geographies') }}">空间浏览</a>
-            <a href="{{ url_for('random_browse') }}">随机浏览</a>
+            <!-- <a href="{{ url_for('browse_cultures') }}">文化浏览</a> -->
+            <!-- <a href="{{ url_for('browse_geographies') }}">空间浏览</a> -->
+            <!-- <a href="{{ url_for('random_browse') }}">随机浏览</a> -->
             <a href="{{ url_for('user_center') }}">用户中心</a>
             <a href="#">平台支持</a>
             {% if session.get('user_id') %}

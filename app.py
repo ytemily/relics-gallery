@@ -23,7 +23,7 @@ app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production-2
 db_config = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', 'xxxx'),
+    'password': os.getenv('DB_PASSWORD', 'leeanna'),
     'database': os.getenv('DB_NAME', 'project')
 }
 
@@ -88,8 +88,9 @@ def normalize_image_path(path):
     if not path:
         return None
 
-    # 让路径在images文件夹中
-    path = 'images/' + path
+    # 如果路径已经以 images/ 开头，不再添加
+    if not path.startswith('images/'):
+        path = 'images/' + path
     
     return path
 

@@ -35,7 +35,18 @@ header {
     font-size: 1.5rem;
     font-weight: bold;
     letter-spacing: 2px;
+    display: flex;
+    align-items: center;
 }
+
+/* 新增 Logo 样式 */
+.site-logo {
+    height: 40px; /* 根据你的导航栏高度调整，通常 30px-50px 合适 */
+    width: auto;  /* 保持比例 */
+    vertical-align: middle;
+    margin-right: 10px; /* 图片和文字之间的间距 */
+}
+
 
 .search-bar {
     flex: 1;

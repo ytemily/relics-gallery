@@ -411,8 +411,9 @@
 
     <!-- 顶部导航 (初始隐藏) -->
     <nav class="navbar">
-        <a href="{{ url_for('homepage') }}#explore" style="text-decoration: none; color: inherit;">
-            <div style="font-weight:bold; font-size:20px; cursor: pointer;">[Logo] 遗珍图库</div>
+        <a href="{{ url_for('homepage') }}#explore" style="text-decoration: none; color: inherit; display: flex; align-items: center;">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" style="height: 35px; width: auto; margin-right: 10px;">
+            <div style="font-weight:bold; font-size:20px; cursor: pointer; color: #333;">遗珍图库</div>
         </a>
         <div class="search-bar">
             <form action="{{ url_for('search') }}" method="GET" style="display: flex; align-items: center; gap: 10px;">
@@ -421,9 +422,9 @@
             </form>
         </div>
         <div class="user-menu">
-            <a href="{{ url_for('browse_cultures') }}" style="color: #333; text-decoration: none; margin-left: 20px;">文化浏览</a>
-            <a href="{{ url_for('browse_geographies') }}" style="color: #333; text-decoration: none; margin-left: 20px;">空间浏览</a>
-            <a href="{{ url_for('random_browse') }}" style="color: #333; text-decoration: none; margin-left: 20px;">随机浏览</a>
+            <!-- <a href="{{ url_for('browse_cultures') }}" style="color: #333; text-decoration: none; margin-left: 20px;">文化浏览</a> -->
+            <!-- <a href="{{ url_for('browse_geographies') }}" style="color: #333; text-decoration: none; margin-left: 20px;">空间浏览</a> -->
+            <!-- <a href="{{ url_for('random_browse') }}" style="color: #333; text-decoration: none; margin-left: 20px;">随机浏览</a> -->
             <a href="{{ url_for('user_center') }}" style="color: #333; text-decoration: none; margin-left: 20px;">用户中心</a>
             <span style="margin-left: 20px;">平台支持</span>
             {% if session.get('user_id') %}
