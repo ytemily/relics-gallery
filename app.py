@@ -1583,7 +1583,7 @@ def user_center():
                              albums=albums,
                              stats=stats,
                              export_records=export_records,
-                             page_view='dashboard')  # 默认显示dashboard视图
+                             page_view='collections')  # 默认显示collections视图（仪表盘已注释）
     else:
         # 未登录用户 - 显示访客模式
         # 获取session中的收藏

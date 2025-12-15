@@ -229,7 +229,7 @@
         margin-top: 5px;
     }
 
-    /* 可视化仪表板 */
+    /* 可视化仪表板 - 已注释
     .dashboard-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -252,7 +252,7 @@
     }
 
     /* 年代分布统计 */
-    .era-bar {
+    /* .era-bar {
         margin-bottom: 15px;
     }
 
@@ -283,8 +283,9 @@
         font-size: 0.85rem;
         font-weight: bold;
     }
+    */
 
-    /* 材质构成 - 饼图 */
+    /* 材质构成 - 饼图 - 已注释
     .pie-chart-container {
         display: flex;
         flex-direction: column;
@@ -339,6 +340,7 @@
         height: 16px;
         border-radius: 2px;
     }
+    */
 
     /* 图集网格 */
     .albums-grid {
@@ -849,20 +851,21 @@
 
         <!-- 视图切换标签 -->
         <div class="view-tabs">
+            <!-- 收藏可视化仪表板标签 - 已注释
             <div class="view-tab {% if page_view == 'dashboard' %}active{% endif %}" onclick="switchView('dashboard')">
                 收藏可视化仪表板
             </div>
+            -->
             <div class="view-tab {% if page_view == 'collections' %}active{% endif %}" onclick="switchView('collections')">
                 我的图集
             </div>
         </div>
 
         {% if page_view == 'dashboard' %}
-            <!-- 已登录页面1：可视化仪表板 -->
+            {# 已登录页面1：可视化仪表板 - 已注释
             <h2 class="section-title">收藏可视化仪表板</h2>
             
             <div class="dashboard-grid">
-                <!-- 年代分布统计 -->
                 <div class="dashboard-panel">
                     <div class="panel-title">年代分布统计</div>
                     <div class="era-bar">
@@ -891,7 +894,6 @@
                     </div>
                 </div>
 
-                <!-- 材质构成 -->
                 <div class="dashboard-panel">
                     <div class="panel-title">材质构成</div>
                     <div class="pie-chart-container">
@@ -917,6 +919,7 @@
                     </div>
                 </div>
             </div>
+            #}
 
             <h2 class="section-title">我的图集</h2>
             
@@ -1225,9 +1228,11 @@
     }
 
     function switchView(view) {
-        if (view === 'dashboard') {
-            window.location.href = "{{ url_for('user_center') }}";
-        } else if (view === 'collections') {
+        // 仪表盘视图已注释
+        // if (view === 'dashboard') {
+        //     window.location.href = "{{ url_for('user_center') }}";
+        // } else 
+        if (view === 'collections') {
             window.location.href = "{{ url_for('user_collections') }}";
         }
     }
