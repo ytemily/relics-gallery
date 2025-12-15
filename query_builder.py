@@ -73,6 +73,7 @@ def build_images_query():
 def build_search_query(search_term):
     """构建搜索查询SQL
     搜索范围包括：标题、艺术家、文化、来源、年代、描述、材质
+    返回结果包含文化、材质和年代信息，用于筛选和排序
     """
     if not search_term:
         return None
@@ -85,7 +86,10 @@ def build_search_query(search_term):
             a.{FIELDS['artifact']['id']} AS artifact_id,
             a.{FIELDS['artifact']['title_cn']} AS title,
             a.{FIELDS['artifact']['date_cn']} AS date_text,
-            ANY_VALUE(iv.{FIELDS['image']['local_path']}) AS local_path
+            ANY_VALUE(iv.{FIELDS['image']['local_path']}) AS local_path,
+            ANY_VALUE(p.{FIELDS['property']['culture']}) AS culture_name,
+            ANY_VALUE(a.{FIELDS['artifact']['material']}) AS medium,
+            ANY_VALUE(a.{FIELDS['artifact']['start_year']}) AS start_year
         FROM {TABLES['artifacts']} a
         LEFT JOIN {TABLES['image_versions']} iv ON a.{FIELDS['artifact']['id']} = iv.{FIELDS['image']['artifact_id']}
         LEFT JOIN {TABLES['properties']} p ON a.{FIELDS['artifact']['id']} = p.{FIELDS['property']['artifact_id']}

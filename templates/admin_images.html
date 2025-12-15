@@ -1,0 +1,402 @@
+{% extends 'base.html' %}
+
+{% block title %}图像管理 - 管理员后台{% endblock %}
+
+{% block content %}
+<style>
+    .admin-container {
+        max-width: 1400px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+    
+    .images-panel {
+        background-color: var(--color-white);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 30px;
+    }
+    
+    .images-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .images-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--color-text);
+    }
+    
+    /* 图像网格 */
+    .images-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 25px;
+    }
+    
+    .image-card {
+        background-color: var(--color-white);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .image-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .image-preview {
+        width: 100%;
+        height: 200px;
+        background-color: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    .image-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .image-placeholder {
+        color: #ccc;
+        font-size: 0.9rem;
+    }
+    
+    .image-info {
+        padding: 15px;
+    }
+    
+    .image-title {
+        font-weight: bold;
+        color: var(--color-text);
+        margin-bottom: 8px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .image-meta {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 5px;
+    }
+    
+    .image-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+    }
+    
+    .action-btn {
+        flex: 1;
+        padding: 8px;
+        border: 1px solid var(--border-color);
+        background-color: var(--color-white);
+        color: var(--color-text);
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .action-btn:hover {
+        background-color: var(--color-accent);
+        color: var(--color-white);
+        border-color: var(--color-accent);
+    }
+    
+    /* 分页 */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .page-btn {
+        padding: 8px 15px;
+        border: 1px solid var(--border-color);
+        background-color: var(--color-white);
+        color: var(--color-text);
+        border-radius: 4px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    
+    .page-btn:hover {
+        background-color: var(--color-primary);
+        color: var(--color-white);
+        border-color: var(--color-primary);
+    }
+    
+    .page-btn.active {
+        background-color: var(--color-text);
+        color: var(--color-white);
+        border-color: var(--color-text);
+    }
+    
+    /* 替换图像模态框 */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+        background-color: var(--color-white);
+        margin: 10% auto;
+        padding: 30px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+    }
+    
+    .modal-header {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+        color: var(--color-text);
+    }
+    
+    .close {
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        color: #999;
+    }
+    
+    .close:hover {
+        color: var(--color-text);
+    }
+    
+    .upload-area-small {
+        border: 2px dashed var(--border-color);
+        border-radius: 4px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 20px;
+        cursor: pointer;
+    }
+    
+    .upload-area-small:hover {
+        border-color: var(--color-primary);
+        background-color: #fafafa;
+    }
+</style>
+
+<div class="admin-container">
+    <a href="{{ url_for('admin_dashboard') }}" class="back-link" style="color: var(--color-primary); text-decoration: none; margin-bottom: 20px; display: inline-block;">← 返回仪表板</a>
+    
+    <div class="images-panel">
+        <div class="images-header">
+            <h1 class="images-title">🖼️ 图像管理</h1>
+            <div style="color: #666; font-size: 0.95rem;">
+                共 {{ total }} 张图像
+            </div>
+        </div>
+        
+        {% if images %}
+        <div class="images-grid">
+            {% for image in images %}
+            <div class="image-card">
+                <div class="image-preview">
+                    {% if image.Local_Path %}
+                        <img src="{{ url_for('static', filename=image.Local_Path) }}" 
+                             alt="{{ image.Title_CN }}"
+                             onerror="this.parentElement.innerHTML='<div class=\'image-placeholder\'>图片加载失败</div>'">
+                    {% else %}
+                        <div class="image-placeholder">暂无图片</div>
+                    {% endif %}
+                </div>
+                
+                <div class="image-info">
+                    <div class="image-title">{{ image.Title_CN }}</div>
+                    <div class="image-meta">版本: {{ image.Version_Type }}</div>
+                    <div class="image-meta">大小: {{ '%.2f'|format(image.File_Size_KB or 0) }} KB</div>
+                    <div class="image-meta">
+                        更新: {{ image.Last_Processed_Time.strftime('%Y-%m-%d') if image.Last_Processed_Time else '未知' }}
+                    </div>
+                    
+                    <div class="image-actions">
+                        <button class="action-btn" onclick="openReplaceModal({{ image.Version_PK }}, '{{ image.Title_CN }}')">
+                            替换
+                        </button>
+                        <a href="{{ url_for('detail', artifact_id=image.Artifact_PK) }}" 
+                           class="action-btn" 
+                           style="text-align: center; text-decoration: none;"
+                           target="_blank">
+                            查看
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- 分页 -->
+        {% if total > per_page %}
+        <div class="pagination">
+            {% if page > 1 %}
+                <a href="{{ url_for('admin_images', page=page-1) }}" class="page-btn">← 上一页</a>
+            {% endif %}
+            
+            {% set total_pages = (total + per_page - 1) // per_page %}
+            {% for p in range(1, total_pages + 1) %}
+                {% if p == page %}
+                    <span class="page-btn active">{{ p }}</span>
+                {% elif p <= 3 or p > total_pages - 3 or (p >= page - 1 and p <= page + 1) %}
+                    <a href="{{ url_for('admin_images', page=p) }}" class="page-btn">{{ p }}</a>
+                {% elif p == 4 or p == total_pages - 3 %}
+                    <span class="page-btn" style="border: none; cursor: default;">...</span>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page < total_pages %}
+                <a href="{{ url_for('admin_images', page=page+1) }}" class="page-btn">下一页 →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div style="text-align: center; padding: 60px; color: #999;">
+            <p style="font-size: 1.2rem;">暂无图像记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 替换图像模态框 -->
+<div id="replaceModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeReplaceModal()">&times;</span>
+        <h2 class="modal-header">替换图像</h2>
+        
+        <div style="margin-bottom: 20px; padding: 10px; background-color: #f8f9fa; border-radius: 4px;">
+            <strong>文物：</strong><span id="modalArtifactTitle"></span>
+        </div>
+        
+        <form id="replaceForm" onsubmit="submitReplace(event)">
+            <input type="hidden" id="versionId" name="version_id">
+            
+            <div class="upload-area-small" onclick="document.getElementById('replaceFileInput').click()">
+                <div style="font-size: 2rem; margin-bottom: 10px;">📁</div>
+                <div>点击选择新图像文件</div>
+                <div style="font-size: 0.85rem; color: #999; margin-top: 5px;">支持 JPG、PNG、WebP 格式</div>
+            </div>
+            
+            <input type="file" 
+                   id="replaceFileInput" 
+                   accept="image/*" 
+                   style="display: none;"
+                   required>
+            
+            <div id="selectedFileInfo" style="display: none; padding: 10px; background-color: #e8f5e9; border: 1px solid #4caf50; border-radius: 4px; margin-bottom: 15px;">
+                <strong>已选择：</strong><span id="selectedFileName"></span>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeReplaceModal()" style="flex: 1; padding: 10px; border: 1px solid var(--border-color); background: white; border-radius: 4px; cursor: pointer;">
+                    取消
+                </button>
+                <button type="submit" style="flex: 1; padding: 10px; border: none; background: var(--color-text); color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                    确认替换
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentVersionId = null;
+    
+    // 监听文件选择
+    document.getElementById('replaceFileInput').addEventListener('change', function(e) {
+        if (this.files.length > 0) {
+            document.getElementById('selectedFileName').textContent = this.files[0].name;
+            document.getElementById('selectedFileInfo').style.display = 'block';
+        }
+    });
+    
+    function openReplaceModal(versionId, artifactTitle) {
+        currentVersionId = versionId;
+        document.getElementById('versionId').value = versionId;
+        document.getElementById('modalArtifactTitle').textContent = artifactTitle;
+        document.getElementById('replaceModal').style.display = 'block';
+    }
+    
+    function closeReplaceModal() {
+        document.getElementById('replaceModal').style.display = 'none';
+        document.getElementById('replaceForm').reset();
+        document.getElementById('selectedFileInfo').style.display = 'none';
+    }
+    
+    function submitReplace(e) {
+        e.preventDefault();
+        
+        const versionId = document.getElementById('versionId').value;
+        const fileInput = document.getElementById('replaceFileInput');
+        
+        if (!fileInput.files.length) {
+            alert('请选择文件');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        
+        // 显示加载状态
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = '正在上传...';
+        submitBtn.disabled = true;
+        
+        fetch(`/admin/image/replace/${versionId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('图像替换成功！');
+                closeReplaceModal();
+                window.location.reload();
+            } else {
+                alert('替换失败: ' + data.message);
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            alert('替换失败: ' + error);
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        });
+    }
+    
+    // 点击模态框外部关闭
+    window.onclick = function(event) {
+        const modal = document.getElementById('replaceModal');
+        if (event.target === modal) {
+            closeReplaceModal();
+        }
+    }
+</script>
+{% endblock %}

@@ -405,7 +405,43 @@
             background: #364e4d;
         }
 
+        /* --- 封面标题样式 --- */
+        .cover-title {
+            position: absolute;
+            z-index: 5; /* 保证在最上层 */
+            text-align: center;
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            pointer-events: none; /* 让点击能穿透到父容器触发 toggleHero */
+        }
+
+        .main-title {
+            /* 字体选择：优先用书法体，没有则用宋体 */
+            font-family: 'Ma Shan Zheng', "Noto Serif SC", serif; 
+            font-size: 6rem; /* 超大字号 */
+            color: var(--c-slate);
+            letter-spacing: 0.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 4px 15px rgba(74, 69, 87, 0.2); /* 柔和阴影增加立体感 */
+        }
+
+        .sub-title {
+            font-family: "Noto Serif SC", serif;
+            font-size: 1.2rem;
+            color: var(--c-gold); /* 使用你的枯金配色 */
+            letter-spacing: 0.8rem;
+            font-weight: 300;
+        }
+
+        /* --- 交互效果：激活时隐藏标题 --- */
+        .hero-section.active .cover-title {
+            opacity: 0;
+            transform: scale(1.1); /* 消失时稍微放大，制造淡出效果 */
+            filter: blur(4px);
+        }
+
     </style>
+
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -426,7 +462,7 @@
             <!-- <a href="{{ url_for('browse_geographies') }}" style="color: #333; text-decoration: none; margin-left: 20px;">空间浏览</a> -->
             <!-- <a href="{{ url_for('random_browse') }}" style="color: #333; text-decoration: none; margin-left: 20px;">随机浏览</a> -->
             <a href="{{ url_for('user_center') }}" style="color: #333; text-decoration: none; margin-left: 20px;">用户中心</a>
-            <span style="margin-left: 20px;">平台支持</span>
+            <a href="{{ url_for('support') }}" style="color: #333; text-decoration: none; margin-left: 20px;">平台支持</a>
             {% if session.get('user_id') %}
                 <a href="{{ url_for('user_center') }}" style="color: #333; text-decoration: none; margin-left: 20px;">欢迎, {{ session.get('username', session.get('email', 'User')) }}</a>
                 <a href="{{ url_for('logout') }}" style="color: #333; text-decoration: none; margin-left: 10px;">退出</a>
@@ -439,6 +475,11 @@
     <!-- 沉浸式首屏 -->
     <!-- 点击或滑动此区域触发效果 -->
     <section class="hero-section" onclick="toggleHero()">
+
+        <div class="cover-title">
+            <div class="main-title">遗珍图库</div>
+            <div class="sub-title">RELICS GALLERY</div>
+        </div>
         
         <!-- 底层名言 (Quote Layer) -->
         <div class="quote-layer">

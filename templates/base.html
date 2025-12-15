@@ -8,7 +8,7 @@
 </head>
 <body>
     <header>
-        <a href="{{ url_for('random_browse') }}" style="text-decoration: none; color: inherit;">
+        <a href="{{ url_for('homepage') }}" style="text-decoration: none; color: inherit;">
             <div class="logo">
                 <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="site-logo">
                 <span>遗珍图库</span>
@@ -25,7 +25,7 @@
             <!-- <a href="{{ url_for('browse_geographies') }}">空间浏览</a> -->
             <!-- <a href="{{ url_for('random_browse') }}">随机浏览</a> -->
             <a href="{{ url_for('user_center') }}">用户中心</a>
-            <a href="#">平台支持</a>
+            <a href="{{ url_for('support') }}">平台支持</a>
             {% if session.get('user_id') %}
                 <a href="{{ url_for('user_center') }}" style="margin-left: 20px;">欢迎, {{ session.get('username', session.get('email', 'User')) }}</a>
                 <a href="{{ url_for('logout') }}" style="margin-left: 10px;">退出</a>

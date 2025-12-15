@@ -5,6 +5,10 @@ import os
 import re
 from werkzeug.security import generate_password_hash, check_password_hash
 from query_builder import build_search_query, build_cultures_browse_query, build_culture_artifacts_query
+import pandas as pd
+from datetime import datetime
+from werkzeug.utils import secure_filename
+from functools import wraps
 
 # 文化描述映射（用于文化浏览页面）
 CULTURE_DESCRIPTIONS = {
@@ -386,23 +390,14 @@ def search():
         cursor.execute(query, (search_pattern,) * 10)
         artifacts = cursor.fetchall()
         
-        # TODO: 在这里添加排序逻辑
-        # 目前暂时不实现实际的SQL排序，保留接口
-        # if sort_by == 'era_asc':
-        #     # 按年代从早到晚排序
-        # elif sort_by == 'era_desc':
-        #     # 按年代从晚到早排序
-        # elif sort_by == 'newest':
-        #     # 按最新入库排序
-        
         # 规范化图片路径
         for artifact in artifacts:
             if artifact.get('local_path'):
                 artifact['local_path'] = normalize_image_path(artifact['local_path'])
         
-        # 获取筛选选项数据（用于显示筛选列表）
+        # 获取筛选选项数据（基于原始搜索结果，在筛选前计算）
         try:
-            filter_options = get_filter_options(conn, search_term)
+            filter_options = get_filter_options_from_results(artifacts)
         except Exception as e:
             print(f"Error getting filter options: {e}")
             # 如果获取失败，使用空数据
@@ -412,6 +407,46 @@ def search():
                 'materials': [],
                 'regions': []
             }
+        
+        # 应用筛选条件（在计算筛选选项之后）
+        if culture_filters or material_filters:
+            filtered_artifacts = []
+            for artifact in artifacts:
+                # 检查文化筛选
+                if culture_filters:
+                    artifact_culture = artifact.get('culture_name', '') or ''
+                    artifact_culture = artifact_culture.strip()
+                    if artifact_culture not in culture_filters:
+                        continue
+                
+                # 检查材质筛选
+                if material_filters:
+                    artifact_material = artifact.get('medium', '') or ''
+                    artifact_material = artifact_material.strip()
+                    if artifact_material not in material_filters:
+                        continue
+                
+                filtered_artifacts.append(artifact)
+            
+            artifacts = filtered_artifacts
+        
+        # 应用排序逻辑
+        if sort_by == 'era_asc':
+            # 按年代从早到晚排序（start_year 升序）
+            artifacts = sorted(artifacts, key=lambda x: (
+                x.get('start_year') is None,  # None 值放到最后
+                x.get('start_year') or float('inf')  # 按 start_year 升序
+            ))
+        elif sort_by == 'era_desc':
+            # 按年代从晚到早排序（start_year 降序）
+            artifacts = sorted(artifacts, key=lambda x: (
+                x.get('start_year') is None,  # None 值放到最后
+                -(x.get('start_year') or float('-inf'))  # 按 start_year 降序
+            ))
+        elif sort_by == 'newest':
+            # 按最新入库排序（artifact_id 降序）
+            artifacts = sorted(artifacts, key=lambda x: x.get('artifact_id', 0), reverse=True)
+        # 'relevance' 或其他：保持默认排序
         
         cursor.close()
         conn.close()
@@ -429,108 +464,59 @@ def search():
         return render_template('error.html', 
                              error_message=f"数据库查询错误: {str(e)}"), 500
 
-def get_filter_options(conn, search_term=None):
+def get_filter_options_from_results(artifacts):
     """
-    获取筛选选项数据（用于显示在筛选栏中）
-    返回各个筛选类别的选项及其数量
-    TODO: 后续需要根据search_term和当前筛选条件计算实际数量
+    从搜索结果中提取筛选选项数据
+    返回各个筛选类别的选项及其数量（仅包含搜索结果中出现的）
     """
-    try:
-        cursor = conn.cursor(dictionary=True)
+    # 统计文化和材质
+    culture_count = {}
+    material_count = {}
+    
+    for artifact in artifacts:
+        # 统计文化
+        culture = artifact.get('culture_name')
+        if culture and culture.strip():
+            culture = culture.strip()
+            culture_count[culture] = culture_count.get(culture, 0) + 1
         
-        # 获取年代分布（从date_text中提取，这里使用虚拟数据）
-        # TODO: 实际应该从数据库查询并统计
-        eras = [
-            {'value': '商周时期', 'label': '商周时期', 'count': 23},
-            {'value': '秦汉时期', 'label': '秦汉时期', 'count': 15},
-            {'value': '魏晋南北朝', 'label': '魏晋南北朝', 'count': 8},
-            {'value': '隋唐五代', 'label': '隋唐五代', 'count': 12},
-            {'value': '宋元时期', 'label': '宋元时期', 'count': 18},
-            {'value': '明清时期', 'label': '明清时期', 'count': 25},
-        ]
-        
-        # 获取文化分布（从PROPERTIES表的Culture字段获取）
-        cursor.execute("""
-            SELECT 
-                p.Culture as value, 
-                p.Culture as label, 
-                COUNT(DISTINCT a.Artifact_PK) as count
-            FROM PROPERTIES p
-            LEFT JOIN ARTIFACTS a ON p.Artifact_PK = a.Artifact_PK
-            WHERE p.Culture IS NOT NULL AND p.Culture != ''
-            GROUP BY p.Culture
-            ORDER BY count DESC, p.Culture
-        """)
-        cultures = cursor.fetchall()
-        if not cultures:
-            # 如果没有数据，使用虚拟数据
-            cultures = [
-                {'value': '1', 'label': '中原文化', 'count': 45},
-                {'value': '2', 'label': '楚文化', 'count': 32},
-                {'value': '3', 'label': '巴蜀文化', 'count': 28},
-                {'value': '4', 'label': '日本文化', 'count': 15},
-                {'value': '5', 'label': '希腊罗马文化', 'count': 20},
-            ]
-        
-        # 获取材质分布
-        cursor.execute("""
-            SELECT DISTINCT Material as value, Material as label, COUNT(*) as count
-            FROM ARTIFACTS
-            WHERE Material IS NOT NULL AND Material != ''
-            GROUP BY Material
-            ORDER BY count DESC
-            LIMIT 20
-        """)
-        materials = cursor.fetchall()
-        if not materials:
-            # 如果没有数据，使用虚拟数据
-            materials = [
-                {'value': '青铜', 'label': '青铜', 'count': 58},
-                {'value': '玉石', 'label': '玉石', 'count': 32},
-                {'value': '陶瓷', 'label': '陶瓷', 'count': 28},
-                {'value': '金银', 'label': '金银', 'count': 15},
-                {'value': '漆器', 'label': '漆器', 'count': 12},
-            ]
-        
-        # 获取地区分布（从Departments表获取，这里使用虚拟数据）
-        # TODO: 实际应该从数据库查询
-        regions = [
-            {'value': '河南出土', 'label': '河南出土', 'count': 35},
-            {'value': '陕西出土', 'label': '陕西出土', 'count': 28},
-            {'value': '四川出土', 'label': '四川出土', 'count': 22},
-            {'value': '湖南出土', 'label': '湖南出土', 'count': 18},
-            {'value': '湖北出土', 'label': '湖北出土', 'count': 15},
-        ]
-        
-        cursor.close()
-        
-        return {
-            'eras': eras,
-            'cultures': cultures,
-            'materials': materials,
-            'regions': regions
+        # 统计材质
+        material = artifact.get('medium')
+        if material and material.strip():
+            material = material.strip()
+            material_count[material] = material_count.get(material, 0) + 1
+    
+    # 转换为列表格式，按数量降序排列
+    cultures = [
+        {
+            'value': culture,
+            'label': culture,
+            'count': count
         }
-    except Error as e:
-        print(f"Error getting filter options: {e}")
-        # 返回虚拟数据
-        return {
-            'eras': [
-                {'value': '商周时期', 'label': '商周时期', 'count': 23},
-                {'value': '秦汉时期', 'label': '秦汉时期', 'count': 15},
-            ],
-            'cultures': [
-                {'value': '1', 'label': '中原文化', 'count': 45},
-                {'value': '2', 'label': '楚文化', 'count': 32},
-            ],
-            'materials': [
-                {'value': '青铜', 'label': '青铜', 'count': 58},
-                {'value': '玉石', 'label': '玉石', 'count': 32},
-            ],
-            'regions': [
-                {'value': '河南出土', 'label': '河南出土', 'count': 35},
-                {'value': '陕西出土', 'label': '陕西出土', 'count': 28},
-            ]
+        for culture, count in sorted(culture_count.items(), key=lambda x: (-x[1], x[0]))
+    ]
+    
+    materials = [
+        {
+            'value': material,
+            'label': material,
+            'count': count
         }
+        for material, count in sorted(material_count.items(), key=lambda x: (-x[1], x[0]))
+    ]
+    
+    # 年代筛选暂时使用空列表（暂时不用接入实现）
+    eras = []
+    
+    # 地区筛选暂时使用空列表
+    regions = []
+    
+    return {
+        'eras': eras,
+        'cultures': cultures,
+        'materials': materials,
+        'regions': regions
+    }
 
 @app.route('/browse')
 def browse_cultures():
@@ -1712,6 +1698,11 @@ def guest_album_detail():
     
     return render_template('album_detail.html', album=album, artifacts=artifacts)
 
+@app.route('/support')
+def support():
+    """平台支持页面"""
+    return render_template('support.html')
+
 @app.route('/user/collections')
 def user_collections():
     """用户图集页面（已登录页面2）"""
@@ -1791,6 +1782,601 @@ def user_collections():
                          stats=stats,
                          export_records=export_records,
                          page_view='collections')
+
+
+# ========== 管理员认证装饰器 ==========
+
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'admin123')  # 建议使用环境变量
+
+def admin_required(f):
+    """管理员权限验证装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('is_admin'):
+            flash('请先进行管理员登录', 'error')
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ========== 管理员认证路由 ==========
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    """管理员登录页面"""
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        
+        if password == ADMIN_PASSWORD:
+            session['is_admin'] = True
+            session['admin_login_time'] = datetime.now().isoformat()
+            flash('管理员登录成功', 'success')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('管理员密码错误', 'error')
+            return redirect(url_for('admin_login'))
+    
+    return render_template('admin_login.html')
+
+@app.route('/admin/logout')
+def admin_logout():
+    """管理员登出"""
+    session.pop('is_admin', None)
+    session.pop('admin_login_time', None)
+    flash('已退出管理员模式', 'info')
+    return redirect(url_for('homepage'))
+
+# ========== 管理员仪表板 ==========
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """管理员仪表板 - 主页"""
+    conn = get_db_connection()
+    if conn is None:
+        return render_template('error.html', 
+                             error_message="无法连接到数据库"), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # 获取统计信息
+        stats = {}
+        
+        # 文物总数
+        cursor.execute("SELECT COUNT(*) as count FROM ARTIFACTS")
+        stats['total_artifacts'] = cursor.fetchone()['count']
+        
+        # 图片总数
+        cursor.execute("SELECT COUNT(*) as count FROM IMAGE_VERSIONS")
+        stats['total_images'] = cursor.fetchone()['count']
+        
+        # 来源机构数
+        cursor.execute("SELECT COUNT(*) as count FROM SOURCES")
+        stats['total_sources'] = cursor.fetchone()['count']
+        
+        # 最近7天新增文物
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM LOGS 
+            WHERE Table_Name = 'ARTIFACTS' 
+            AND Operation_Type = 'INSERT' 
+            AND Log_Time >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        """)
+        result = cursor.fetchone()
+        stats['recent_artifacts'] = result['count'] if result else 0
+        
+        # 最近操作日志（前10条）
+        cursor.execute("""
+            SELECT Log_PK, Log_Time, Table_Name, Operation_Type, 
+                   User_ID, Status, Description
+            FROM LOGS
+            ORDER BY Log_Time DESC
+            LIMIT 10
+        """)
+        recent_logs = cursor.fetchall()
+        
+        # 按来源机构统计文物数量
+        cursor.execute("""
+            SELECT s.Museum_Name_CN, COUNT(a.Artifact_PK) as count
+            FROM SOURCES s
+            LEFT JOIN ARTIFACTS a ON s.Source_ID = a.Source_ID
+            GROUP BY s.Source_ID
+            ORDER BY count DESC
+        """)
+        source_stats = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return render_template('admin_dashboard.html', 
+                             stats=stats,
+                             recent_logs=recent_logs,
+                             source_stats=source_stats)
+    except Error as e:
+        if conn:
+            conn.close()
+        return render_template('error.html', 
+                             error_message=f"数据库查询错误: {str(e)}"), 500
+
+# ========== 元数据导入功能 ==========
+
+ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/admin/import', methods=['GET', 'POST'])
+@admin_required
+def admin_import():
+    """元数据导入页面"""
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            flash('没有上传文件', 'error')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('未选择文件', 'error')
+            return redirect(request.url)
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            
+            # 读取文件
+            try:
+                if filename.endswith('.csv'):
+                    df = pd.read_csv(file, encoding='utf-8')
+                else:
+                    df = pd.read_excel(file)
+                
+                # 验证必需列
+                required_columns = ['Title_CN', 'Source_ID', 'Original_ID']
+                missing_columns = [col for col in required_columns if col not in df.columns]
+                if missing_columns:
+                    flash(f'缺少必需列: {", ".join(missing_columns)}', 'error')
+                    return redirect(request.url)
+                
+                # 导入数据
+                import_mode = request.form.get('import_mode', 'skip')  # skip/update
+                result = import_artifacts_from_dataframe(df, import_mode)
+                
+                flash(f'导入成功：新增 {result["inserted"]} 条，更新 {result["updated"]} 条，跳过 {result["skipped"]} 条', 'success')
+                return redirect(url_for('admin_dashboard'))
+                
+            except Exception as e:
+                flash(f'导入失败: {str(e)}', 'error')
+                return redirect(request.url)
+        else:
+            flash('不支持的文件格式，请上传 CSV 或 Excel 文件', 'error')
+            return redirect(request.url)
+    
+    return render_template('admin_import.html')
+
+def import_artifacts_from_dataframe(df, import_mode='skip'):
+    """从DataFrame导入文物数据"""
+    conn = get_db_connection()
+    if conn is None:
+        raise Exception("无法连接到数据库")
+    
+    result = {'inserted': 0, 'updated': 0, 'skipped': 0, 'errors': []}
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        for index, row in df.iterrows():
+            try:
+                # 检查是否已存在（根据 Source_ID + Original_ID）
+                cursor.execute("""
+                    SELECT Artifact_PK FROM ARTIFACTS 
+                    WHERE Source_ID = %s AND Original_ID = %s
+                """, (row['Source_ID'], row['Original_ID']))
+                
+                existing = cursor.fetchone()
+                
+                if existing:
+                    if import_mode == 'update':
+                        # 更新模式
+                        update_artifact(cursor, existing['Artifact_PK'], row)
+                        result['updated'] += 1
+                    else:
+                        # 跳过模式
+                        result['skipped'] += 1
+                else:
+                    # 插入新记录
+                    insert_artifact(cursor, row)
+                    result['inserted'] += 1
+                
+                conn.commit()
+                
+            except Exception as e:
+                result['errors'].append(f"行 {index + 2}: {str(e)}")
+                conn.rollback()
+        
+        cursor.close()
+        conn.close()
+        
+    except Exception as e:
+        if conn:
+            conn.close()
+        raise e
+    
+    return result
+
+def insert_artifact(cursor, row):
+    """插入新文物记录"""
+    # 插入主表
+    cursor.execute("""
+        INSERT INTO ARTIFACTS (
+            Source_ID, Original_ID, Title_CN, Title_EN, 
+            Description_CN, Classification, Material, 
+            Date_CN, Date_EN, Start_Year, End_Year
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        row.get('Source_ID'),
+        row.get('Original_ID'),
+        row.get('Title_CN'),
+        row.get('Title_EN'),
+        row.get('Description_CN'),
+        row.get('Classification'),
+        row.get('Material'),
+        row.get('Date_CN'),
+        row.get('Date_EN'),
+        row.get('Start_Year'),
+        row.get('End_Year')
+    ))
+    
+    artifact_id = cursor.lastrowid
+    
+    # 插入属性表
+    if any(row.get(col) for col in ['Geography', 'Culture', 'Artist', 'Credit_Line', 'Page_Link']):
+        cursor.execute("""
+            INSERT INTO PROPERTIES (
+                Artifact_PK, Geography, Culture, Artist, 
+                Credit_Line, Page_Link
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            artifact_id,
+            row.get('Geography'),
+            row.get('Culture'),
+            row.get('Artist'),
+            row.get('Credit_Line'),
+            row.get('Page_Link')
+        ))
+    
+    # 插入尺寸表（如果有）
+    if row.get('Size_Type') and row.get('Size_Value'):
+        cursor.execute("""
+            INSERT INTO DIMENSIONS (
+                Artifact_PK, Size_Type, Size_Value, Size_Unit
+            ) VALUES (%s, %s, %s, %s)
+        """, (
+            artifact_id,
+            row.get('Size_Type'),
+            row.get('Size_Value'),
+            row.get('Size_Unit')
+        ))
+    
+    # 记录日志
+    cursor.execute("""
+        INSERT INTO LOGS (
+            Artifact_PK, Table_Name, Operation_Type, 
+            User_ID, Status, Description
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        artifact_id,
+        'ARTIFACTS',
+        'INSERT',
+        'admin_import',
+        'Success',
+        f'通过批量导入创建文物: {row.get("Title_CN")}'
+    ))
+
+def update_artifact(cursor, artifact_id, row):
+    """更新文物记录"""
+    cursor.execute("""
+        UPDATE ARTIFACTS SET
+            Title_CN = %s,
+            Title_EN = %s,
+            Description_CN = %s,
+            Classification = %s,
+            Material = %s,
+            Date_CN = %s,
+            Date_EN = %s,
+            Start_Year = %s,
+            End_Year = %s
+        WHERE Artifact_PK = %s
+    """, (
+        row.get('Title_CN'),
+        row.get('Title_EN'),
+        row.get('Description_CN'),
+        row.get('Classification'),
+        row.get('Material'),
+        row.get('Date_CN'),
+        row.get('Date_EN'),
+        row.get('Start_Year'),
+        row.get('End_Year'),
+        artifact_id
+    ))
+    
+    # 记录日志
+    cursor.execute("""
+        INSERT INTO LOGS (
+            Artifact_PK, Table_Name, Operation_Type, 
+            User_ID, Status, Description
+        ) VALUES (%s, %s, %s, %s, %s, %s)
+    """, (
+        artifact_id,
+        'ARTIFACTS',
+        'UPDATE',
+        'admin_import',
+        'Success',
+        f'通过批量导入更新文物: {row.get("Title_CN")}'
+    ))
+
+# ========== 图像管理功能 ==========
+
+@app.route('/admin/images')
+@admin_required
+def admin_images():
+    """图像管理页面"""
+    conn = get_db_connection()
+    if conn is None:
+        return render_template('error.html', 
+                             error_message="无法连接到数据库"), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # 获取所有图像记录
+        page = request.args.get('page', 1, type=int)
+        per_page = 50
+        offset = (page - 1) * per_page
+        
+        cursor.execute("""
+            SELECT 
+                iv.Version_PK,
+                iv.Artifact_PK,
+                a.Title_CN,
+                iv.Version_Type,
+                iv.Local_Path,
+                iv.File_Size_KB,
+                iv.Last_Processed_Time
+            FROM IMAGE_VERSIONS iv
+            INNER JOIN ARTIFACTS a ON iv.Artifact_PK = a.Artifact_PK
+            ORDER BY iv.Last_Processed_Time DESC
+            LIMIT %s OFFSET %s
+        """, (per_page, offset))
+        
+        images = cursor.fetchall()
+        
+        # 获取总数
+        cursor.execute("SELECT COUNT(*) as count FROM IMAGE_VERSIONS")
+        total = cursor.fetchone()['count']
+        
+        cursor.close()
+        conn.close()
+        
+        return render_template('admin_images.html', 
+                             images=images,
+                             page=page,
+                             per_page=per_page,
+                             total=total)
+    except Error as e:
+        if conn:
+            conn.close()
+        return render_template('error.html', 
+                             error_message=f"数据库查询错误: {str(e)}"), 500
+
+@app.route('/admin/image/replace/<int:version_id>', methods=['POST'])
+@admin_required
+def admin_replace_image(version_id):
+    """替换图像文件"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '没有上传文件'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': '未选择文件'}), 400
+    
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify({'success': False, 'message': '数据库连接失败'}), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # 获取原图像信息
+        cursor.execute("""
+            SELECT Local_Path, Artifact_PK 
+            FROM IMAGE_VERSIONS 
+            WHERE Version_PK = %s
+        """, (version_id,))
+        
+        old_image = cursor.fetchone()
+        if not old_image:
+            return jsonify({'success': False, 'message': '图像记录不存在'}), 404
+        
+        old_path = old_image['Local_Path']
+        artifact_id = old_image['Artifact_PK']
+        
+        # 保存新文件（使用原文件名）
+        new_filename = secure_filename(file.filename)
+        new_path = old_path  # 保持路径不变，只替换文件
+        
+        # 确保目录存在
+        file_dir = os.path.join('static', os.path.dirname(new_path))
+        os.makedirs(file_dir, exist_ok=True)
+        
+        # 保存文件
+        file.save(os.path.join('static', new_path))
+        
+        # 获取文件大小
+        file_size_kb = os.path.getsize(os.path.join('static', new_path)) / 1024
+        
+        # 更新数据库记录
+        cursor.execute("""
+            UPDATE IMAGE_VERSIONS SET
+                File_Size_KB = %s,
+                Last_Processed_Time = NOW()
+            WHERE Version_PK = %s
+        """, (file_size_kb, version_id))
+        
+        # 记录替换日志
+        cursor.execute("""
+            INSERT INTO LOGS (
+                Artifact_PK, Table_Name, Operation_Type, 
+                User_ID, Status, Description
+            ) VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            artifact_id,
+            'IMAGE_VERSIONS',
+            'IMAGE_REPLACE',
+            session.get('username', 'admin'),
+            'Success',
+            f'图像文件替换: {old_path} -> {new_path} (版本ID: {version_id})'
+        ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': '图像替换成功'})
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+            conn.close()
+        return jsonify({'success': False, 'message': f'替换失败: {str(e)}'}), 500
+
+# ========== 日志查看功能 ==========
+
+@app.route('/admin/logs')
+@admin_required
+def admin_logs():
+    """日志查看页面"""
+    conn = get_db_connection()
+    if conn is None:
+        return render_template('error.html', 
+                             error_message="无法连接到数据库"), 500
+    
+    try:
+        cursor = conn.cursor(dictionary=True)
+        
+        # 获取筛选参数
+        operation_type = request.args.get('operation_type', '')
+        table_name = request.args.get('table_name', '')
+        date_from = request.args.get('date_from', '')
+        date_to = request.args.get('date_to', '')
+        
+        # 构建查询
+        query = """
+            SELECT 
+                l.Log_PK,
+                l.Log_Time,
+                l.Artifact_PK,
+                a.Title_CN as artifact_title,
+                l.Table_Name,
+                l.Operation_Type,
+                l.User_ID,
+                l.Status,
+                l.Description
+            FROM LOGS l
+            LEFT JOIN ARTIFACTS a ON l.Artifact_PK = a.Artifact_PK
+            WHERE 1=1
+        """
+        params = []
+        
+        if operation_type:
+            query += " AND l.Operation_Type = %s"
+            params.append(operation_type)
+        
+        if table_name:
+            query += " AND l.Table_Name = %s"
+            params.append(table_name)
+        
+        if date_from:
+            query += " AND DATE(l.Log_Time) >= %s"
+            params.append(date_from)
+        
+        if date_to:
+            query += " AND DATE(l.Log_Time) <= %s"
+            params.append(date_to)
+        
+        query += " ORDER BY l.Log_Time DESC LIMIT 1000"
+        
+        cursor.execute(query, params)
+        logs = cursor.fetchall()
+        
+        # 获取筛选选项
+        cursor.execute("SELECT DISTINCT Operation_Type FROM LOGS ORDER BY Operation_Type")
+        operation_types = [row['Operation_Type'] for row in cursor.fetchall()]
+        
+        cursor.execute("SELECT DISTINCT Table_Name FROM LOGS ORDER BY Table_Name")
+        table_names = [row['Table_Name'] for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        return render_template('admin_logs.html', 
+                             logs=logs,
+                             operation_types=operation_types,
+                             table_names=table_names,
+                             filters={
+                                 'operation_type': operation_type,
+                                 'table_name': table_name,
+                                 'date_from': date_from,
+                                 'date_to': date_to
+                             })
+    except Error as e:
+        if conn:
+            conn.close()
+        return render_template('error.html', 
+                             error_message=f"数据库查询错误: {str(e)}"), 500
+
+# ========== API: 获取导入模板 ==========
+
+@app.route('/admin/api/download_template')
+@admin_required
+def download_import_template():
+    """下载导入模板CSV"""
+    import io
+    from flask import send_file
+    
+    # 创建模板数据
+    template_data = {
+        'Source_ID': [1],
+        'Original_ID': ['EXAMPLE-001'],
+        'Title_CN': ['示例文物'],
+        'Title_EN': ['Example Artifact'],
+        'Description_CN': ['这是一个示例描述'],
+        'Classification': ['青铜器'],
+        'Material': ['青铜'],
+        'Date_CN': ['商代晚期'],
+        'Date_EN': ['Late Shang Dynasty'],
+        'Start_Year': [-1300],
+        'End_Year': [-1046],
+        'Geography': ['河南安阳'],
+        'Culture': ['商文化'],
+        'Artist': ['佚名'],
+        'Credit_Line': ['某博物馆藏'],
+        'Page_Link': ['https://example.com'],
+        'Size_Type': ['高'],
+        'Size_Value': [25.5],
+        'Size_Unit': ['cm']
+    }
+    
+    df = pd.DataFrame(template_data)
+    
+    # 创建内存中的CSV文件
+    output = io.BytesIO()
+    df.to_csv(output, index=False, encoding='utf-8-sig')
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='artifact_import_template.csv'
+    )                      
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

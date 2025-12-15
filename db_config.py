@@ -33,7 +33,9 @@ FIELDS = {
         'classification': 'Classification',
         'material': 'Material',
         'date_cn': 'Date_CN',
-        'date_en': 'Date_EN'
+        'date_en': 'Date_EN',
+        'start_year': 'Start_Year',
+        'end_year': 'End_Year'
     },
     # DIMENSIONS 表字段
     'dimension': {

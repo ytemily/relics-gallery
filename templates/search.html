@@ -285,32 +285,6 @@
             {% endif %}
         </div>
 
-        <!-- 年代筛选 -->
-        <div class="filter-group expanded" data-group="era">
-            <div class="filter-group-title" onclick="toggleFilterGroup(this)">
-                <span>年代</span>
-                <span class="filter-group-toggle">+</span>
-            </div>
-            <div class="filter-group-content">
-                <ul class="filter-checkbox-list">
-                    {% for era in filter_options.eras|default([]) %}
-                    <li class="filter-checkbox-item">
-                        <input type="checkbox" 
-                               id="era-{{ era.value }}" 
-                               name="era" 
-                               value="{{ era.value }}"
-                               {% if era.value in active_filters.get('era', []) %}checked{% endif %}
-                               onchange="applyFilter('era', '{{ era.value }}', this.checked)">
-                        <label for="era-{{ era.value }}">
-                            <span>{{ era.label }}</span>
-                            <span class="filter-count">({{ era.count }})</span>
-                        </label>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-
         <!-- 文化筛选 -->
         <div class="filter-group expanded" data-group="culture">
             <div class="filter-group-title" onclick="toggleFilterGroup(this)">
@@ -320,19 +294,23 @@
             <div class="filter-group-content">
                 <ul class="filter-checkbox-list">
                     {% for culture in filter_options.cultures|default([]) %}
+                    {% set culture_id = 'culture-' + culture.value|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('/', '-')|replace('\\', '-')|replace(':', '-')|replace('*', '-')|replace('?', '-')|replace('"', '-')|replace('<', '-')|replace('>', '-')|replace('|', '-') %}
                     <li class="filter-checkbox-item">
                         <input type="checkbox" 
-                               id="culture-{{ culture.value }}" 
+                               id="{{ culture_id }}" 
                                name="culture" 
                                value="{{ culture.value }}"
                                {% if culture.value in active_filters.get('culture', []) %}checked{% endif %}
                                onchange="applyFilter('culture', '{{ culture.value }}', this.checked)">
-                        <label for="culture-{{ culture.value }}">
+                        <label for="{{ culture_id }}">
                             <span>{{ culture.label }}</span>
                             <span class="filter-count">({{ culture.count }})</span>
                         </label>
                     </li>
                     {% endfor %}
+                    {% if not filter_options.cultures or filter_options.cultures|length == 0 %}
+                    <li style="padding: 10px; color: #999; font-size: 0.9rem;">暂无文化数据</li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -346,19 +324,23 @@
             <div class="filter-group-content">
                 <ul class="filter-checkbox-list">
                     {% for material in filter_options.materials|default([]) %}
+                    {% set material_id = 'material-' + material.value|replace(' ', '-')|replace('(', '')|replace(')', '')|replace('/', '-')|replace('\\', '-')|replace(':', '-')|replace('*', '-')|replace('?', '-')|replace('"', '-')|replace('<', '-')|replace('>', '-')|replace('|', '-') %}
                     <li class="filter-checkbox-item">
                         <input type="checkbox" 
-                               id="material-{{ material.value }}" 
+                               id="{{ material_id }}" 
                                name="material" 
                                value="{{ material.value }}"
                                {% if material.value in active_filters.get('material', []) %}checked{% endif %}
                                onchange="applyFilter('material', '{{ material.value }}', this.checked)">
-                        <label for="material-{{ material.value }}">
+                        <label for="{{ material_id }}">
                             <span>{{ material.label }}</span>
                             <span class="filter-count">({{ material.count }})</span>
                         </label>
                     </li>
                     {% endfor %}
+                    {% if not filter_options.materials or filter_options.materials|length == 0 %}
+                    <li style="padding: 10px; color: #999; font-size: 0.9rem;">暂无材质数据</li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -385,6 +367,35 @@
                         </label>
                     </li>
                     {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        <!-- 年代筛选（放到最底下，暂时不用接入实现） -->
+        <div class="filter-group collapsed" data-group="era">
+            <div class="filter-group-title" onclick="toggleFilterGroup(this)">
+                <span>年代</span>
+                <span class="filter-group-toggle">+</span>
+            </div>
+            <div class="filter-group-content">
+                <ul class="filter-checkbox-list">
+                    {% for era in filter_options.eras|default([]) %}
+                    <li class="filter-checkbox-item">
+                        <input type="checkbox" 
+                               id="era-{{ era.value }}" 
+                               name="era" 
+                               value="{{ era.value }}"
+                               {% if era.value in active_filters.get('era', []) %}checked{% endif %}
+                               onchange="applyFilter('era', '{{ era.value }}', this.checked)">
+                        <label for="era-{{ era.value }}">
+                            <span>{{ era.label }}</span>
+                            <span class="filter-count">({{ era.count }})</span>
+                        </label>
+                    </li>
+                    {% endfor %}
+                    {% if not filter_options.eras or filter_options.eras|length == 0 %}
+                    <li style="padding: 10px; color: #999; font-size: 0.9rem;">年代筛选功能暂未开放</li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -491,10 +502,14 @@
 
     // 移除单个筛选标签
     function removeFilter(filterType, filterValue) {
-        const checkbox = document.getElementById(`${filterType}-${filterValue}`);
-        if (checkbox) {
-            checkbox.checked = false;
-            applyFilter(filterType, filterValue, false);
+        // 查找对应的复选框（通过 value 属性）
+        const checkboxes = document.querySelectorAll(`input[name="${filterType}"]`);
+        for (let checkbox of checkboxes) {
+            if (checkbox.value === filterValue) {
+                checkbox.checked = false;
+                applyFilter(filterType, filterValue, false);
+                break;
+            }
         }
     }
 
