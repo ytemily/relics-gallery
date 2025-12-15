@@ -1700,8 +1700,49 @@ def guest_album_detail():
 
 @app.route('/support')
 def support():
-    """平台支持页面"""
+    """平台支持页面 - 主菜单"""
     return render_template('support.html')
+
+@app.route('/support/guide')
+def support_guide():
+    """平台支持 - 使用指南"""
+    return render_template('support_guide.html')
+
+@app.route('/support/contact')
+def support_contact():
+    """平台支持 - 联系与反馈"""
+    return render_template('support_contact.html')
+
+@app.route('/support/contact', methods=['POST'])
+def support_contact_submit():
+    """处理反馈提交"""
+    feedback_type = request.form.get('feedback_type', '')
+    email = request.form.get('email', '')
+    description = request.form.get('description', '')
+    
+    # TODO: 这里可以添加实际的反馈处理逻辑（如发送邮件、保存到数据库等）
+    flash(f'感谢您的反馈！我们会尽快处理您的{feedback_type}请求。', 'success')
+    return redirect(url_for('support'))
+
+@app.route('/support/admin')
+def support_admin():
+    """平台支持 - 后台管理（需要密码）"""
+    # 简单的密码验证，如果已经验证过就显示页面
+    if session.get('support_admin_verified'):
+        return render_template('support_admin.html')
+    return redirect(url_for('support_admin_login'))
+
+@app.route('/support/admin/login', methods=['GET', 'POST'])
+def support_admin_login():
+    """后台管理密码验证"""
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if password == 'admin':  # 演示密码
+            session['support_admin_verified'] = True
+            return redirect(url_for('support_admin'))
+        else:
+            flash('密码错误，访问拒绝。', 'error')
+    return render_template('support_admin_login.html')
 
 @app.route('/user/collections')
 def user_collections():

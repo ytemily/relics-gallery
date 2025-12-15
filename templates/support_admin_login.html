@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}管理员验证 - 平台支持{% endblock %}
+
+{% block content %}
+<style>
+    .admin-login-container {
+        max-width: 450px;
+        margin: 100px auto;
+        padding: 40px;
+        background-color: var(--color-white);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .admin-login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .admin-login-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+    }
+    
+    .admin-login-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: var(--color-text);
+        margin-bottom: 8px;
+    }
+    
+    .admin-login-subtitle {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--color-text);
+        font-weight: bold;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        font-size: 1rem;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+    
+    .submit-btn {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--color-text);
+        color: var(--color-white);
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .submit-btn:hover {
+        background-color: var(--color-accent);
+    }
+    
+    .back-link-container {
+        text-align: center;
+        margin-top: 20px;
+    }
+    
+    .back-link {
+        color: var(--color-primary);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    
+    .back-link:hover {
+        text-decoration: underline;
+    }
+</style>
+
+<div class="admin-login-container">
+    <div class="admin-login-header">
+        <div class="admin-login-icon">🔐</div>
+        <h1 class="admin-login-title">管理员验证</h1>
+        <p class="admin-login-subtitle">演示功能 - 密码: admin</p>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div style="margin-bottom: 20px;">
+                {% for category, message in messages %}
+                    <div style="padding: 12px; border-radius: 4px; margin-bottom: 10px;
+                                {% if category == 'error' %}background-color: #f8d7da; color: #721c24;{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <form action="{{ url_for('support_admin_login') }}" method="POST">
+        <div class="form-group">
+            <label for="password" class="form-label">管理员密码</label>
+            <input type="password" 
+                   id="password" 
+                   name="password" 
+                   class="form-input" 
+                   placeholder="请输入管理员密码"
+                   required
+                   autofocus>
+        </div>
+        
+        <button type="submit" class="submit-btn">验证</button>
+    </form>
+    
+    <div class="back-link-container">
+        <a href="{{ url_for('support') }}" class="back-link">返回支持中心</a>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}使用指南 - 平台支持{% endblock %}
+
+{% block content %}
+<style>
+    .support-container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 0 20px;
+    }
+    
+    .back-link {
+        display: inline-block;
+        color: var(--color-primary);
+        text-decoration: none;
+        margin-bottom: 20px;
+        font-weight: bold;
+    }
+    
+    .back-link:hover {
+        text-decoration: underline;
+    }
+    
+    .content-panel {
+        background: var(--color-white);
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--color-text);
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .guide-section {
+        margin-bottom: 35px;
+    }
+    
+    .guide-title {
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin-bottom: 12px;
+        border-left: 4px solid var(--color-accent);
+        padding-left: 12px;
+        color: var(--color-text);
+    }
+    
+    .guide-content {
+        font-size: 1rem;
+        line-height: 1.8;
+        color: #555;
+    }
+    
+    .guide-content ul {
+        padding-left: 20px;
+        margin-top: 10px;
+    }
+    
+    .guide-content li {
+        margin-bottom: 15px;
+    }
+    
+    .guide-content strong {
+        color: var(--color-text);
+    }
+</style>
+
+<div class="support-container">
+    <a href="{{ url_for('support') }}" class="back-link">← 返回支持中心</a>
+    
+    <div class="content-panel">
+        <h1 class="page-title">📖 使用指南</h1>
+        
+        <div class="guide-section">
+            <div class="guide-title">如何进行高级检索？</div>
+            <div class="guide-content">
+                <p>在搜索结果页面的左侧，您可以使用"文化"、"材质"等过滤器来精确筛选文物。支持多选和组合查询。</p>
+                <p><strong>使用步骤：</strong></p>
+                <ol>
+                    <li>在搜索框输入关键词并搜索</li>
+                    <li>在搜索结果页左侧选择筛选条件</li>
+                    <li>可以同时选择多个条件进行组合筛选</li>
+                    <li>使用"清空筛选"按钮重置所有筛选</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="guide-section">
+            <div class="guide-title">如何导出高清图像？</div>
+            <div class="guide-content">
+                <p>进入文物详情页，登录用户可点击"下载数据"按钮。如需批量下载，请先将文物添加至"我的图集"，然后在个人中心进行批量导出。</p>
+                <p><strong>批量导出步骤：</strong></p>
+                <ol>
+                    <li>浏览文物时，点击"添加到我的图集"</li>
+                    <li>选择或创建目标图集</li>
+                    <li>进入用户中心查看您的图集</li>
+                    <li>在图集详情页选择导出格式</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="guide-section">
+            <div class="guide-title">常见问题 (FAQ)</div>
+            <div class="guide-content">
+                <ul style="list-style: none; padding-left: 0;">
+                    <li>
+                        <strong>Q: 为什么无法注册？</strong><br>
+                        A: 目前仅支持校内邮箱注册，请使用您的学校邮箱地址。
+                    </li>
+                    <li>
+                        <strong>Q: 图像加载缓慢？</strong><br>
+                        A: 请检查您的网络连接状态。如果使用校园网，建议在网络较好的时段访问。
+                    </li>
+                    <li>
+                        <strong>Q: 如何创建图集？</strong><br>
+                        A: 在用户中心页面，点击"创建新图集"按钮，输入图集名称即可。您可以创建多个图集来分类管理收藏的文物。
+                    </li>
+                    <li>
+                        <strong>Q: 如何收藏文物？</strong><br>
+                        A: 在文物详情页，点击"添加到我的图集"按钮，选择目标图集即可。未登录用户的收藏会保存在临时收藏夹中。
+                    </li>
+                    <li>
+                        <strong>Q: 搜索结果可以排序吗？</strong><br>
+                        A: 可以。在搜索结果页面右上角选择排序方式，支持按年代从早到晚、从晚到早等多种排序。
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="guide-section">
+            <div class="guide-title">浏览功能说明</div>
+            <div class="guide-content">
+                <p><strong>随机浏览：</strong>随机展示数据库中的文物，适合发现意外惊喜。</p>
+                <p><strong>按文化浏览：</strong>按文化类别（如中原文化、楚文化等）分类展示文物。</p>
+                <p><strong>按空间浏览：</strong>按地理位置分类展示文物。</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

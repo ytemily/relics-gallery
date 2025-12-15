@@ -257,189 +257,29 @@
         <p class="page-desc">这里提供详细的使用指南、问题反馈渠道以及管理员入口。</p>
     </header>
 
-    <!-- 1. 主菜单 (Landing Menu) -->
-    <div id="mainMenu" class="menu-grid">
+    <!-- 主菜单 -->
+    <div class="menu-grid">
         <!-- 使用指南入口 -->
-        <div class="menu-card" onclick="showPage('guidePage')">
+        <a href="{{ url_for('support_guide') }}" class="menu-card" style="text-decoration: none; color: inherit;">
             <div class="icon-box">📖</div>
             <h2 class="card-title">使用指南</h2>
             <p class="card-desc">了解如何进行高级检索、创建图集以及导出数据。</p>
-        </div>
+        </a>
 
         <!-- 联系与反馈入口 -->
-        <div class="menu-card" onclick="showPage('contactPage')">
+        <a href="{{ url_for('support_contact') }}" class="menu-card" style="text-decoration: none; color: inherit;">
             <div class="icon-box">✉️</div>
             <h2 class="card-title">联系与反馈</h2>
             <p class="card-desc">提交Bug报告、功能建议或联系我们的技术支持团队。</p>
-        </div>
+        </a>
 
         <!-- 后台管理入口 (带锁) -->
-        <div class="menu-card" onclick="checkAdmin()">
+        <a href="{{ url_for('admin_login') }}" class="menu-card" style="text-decoration: none; color: inherit;">
             <div class="icon-box">⚙️</div>
             <h2 class="card-title">后台管理</h2>
             <p class="card-desc">仅限管理员/开发者。包括批量数据导入和日志查看。</p>
-        </div>
-    </div>
-
-    <!-- 2. 子页面：使用指南 -->
-    <div id="guidePage" class="sub-page">
-        <a class="back-btn" onclick="showPage('mainMenu')">← 返回支持中心</a>
-        <h1 style="font-size:24px; margin-bottom:20px; color: var(--color-text);">使用指南</h1>
-        
-        <div class="guide-section">
-            <div class="guide-title">如何进行高级检索？</div>
-            <div class="guide-content">
-                <p>在搜索结果页面的左侧，您可以使用"年代"、"文化"、"材质"等过滤器来精确筛选文物。支持多选和组合查询。</p>
-            </div>
-        </div>
-        
-        <div class="guide-section">
-            <div class="guide-title">如何导出高清图像？</div>
-            <div class="guide-content">
-                <p>进入文物详情页，登录用户可点击"下载数据"按钮。如需批量下载，请先将文物添加至"我的图集"，然后在个人中心进行批量导出。</p>
-            </div>
-        </div>
-
-        <div class="guide-section">
-            <div class="guide-title">常见问题 (FAQ)</div>
-            <div class="guide-content">
-                <ul>
-                    <li><strong>Q: 为什么无法注册？</strong><br>A: 目前仅支持校内邮箱注册。</li>
-                    <li><strong>Q: 图像加载缓慢？</strong><br>A: 请检查您的校园网连接状态。</li>
-                    <li><strong>Q: 如何创建图集？</strong><br>A: 在用户中心页面，点击"创建新图集"按钮，输入图集名称即可。</li>
-                    <li><strong>Q: 如何收藏文物？</strong><br>A: 在文物详情页，点击"添加到我的图集"按钮，选择目标图集即可。</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3. 子页面：联系与反馈 -->
-    <div id="contactPage" class="sub-page">
-        <a class="back-btn" onclick="showPage('mainMenu')">← 返回支持中心</a>
-        <h1 style="font-size:24px; margin-bottom:20px; color: var(--color-text);">联系与反馈</h1>
-        
-        <form onsubmit="event.preventDefault(); handleFeedbackSubmit(event);">
-            <div class="form-group">
-                <label class="form-label">反馈类型</label>
-                <select class="form-input" name="feedback_type" required>
-                    <option value="">请选择反馈类型</option>
-                    <option value="suggestion">功能建议</option>
-                    <option value="bug">Bug 报告</option>
-                    <option value="data_error">数据错误纠正</option>
-                    <option value="other">其他</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">您的邮箱</label>
-                <input type="email" class="form-input" name="email" placeholder="contact@example.com" required>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">详细描述</label>
-                <textarea class="form-textarea" name="description" rows="6" placeholder="请详细描述您遇到的问题或建议..." required></textarea>
-            </div>
-
-            <button type="submit" class="submit-btn">提交反馈</button>
-        </form>
-    </div>
-
-    <!-- 4. 子页面：后台管理 (普通用户不可视) -->
-    <div id="adminPage" class="sub-page">
-        <a class="back-btn" onclick="showPage('mainMenu')">← 退出管理模式</a>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h1 style="font-size:24px; color: var(--color-text);">后台管理控制台</h1>
-            <span class="admin-badge">当前身份: 管理员</span>
-        </div>
-
-        <div class="guide-section">
-            <div class="guide-title">批量数据导入</div>
-            <div style="padding:20px 0;">
-                <div class="upload-area">
-                    <div style="font-size:30px; margin-bottom:10px;">📂</div>
-                    <p>点击或拖拽 CSV/JSON 元数据文件至此</p>
-                    <p style="font-size:12px; margin-top:5px; color: #999;">支持最大 50MB 文件</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="guide-section">
-            <div class="guide-title">系统日志管理</div>
-            <div class="admin-dashboard">
-                <div class="admin-header">
-                    <span>时间</span>
-                    <span>操作人</span>
-                    <span>行为</span>
-                    <span>状态</span>
-                </div>
-                <div class="admin-row">
-                    <span>2025-12-05 10:23</span>
-                    <span>Admin01</span>
-                    <span>导入数据 (Batch_2025_A)</span>
-                    <span style="color:green">成功</span>
-                </div>
-                <div class="admin-row">
-                    <span>2025-12-05 09:15</span>
-                    <span>User_239</span>
-                    <span>尝试越权访问</span>
-                    <span style="color:red">拦截</span>
-                </div>
-                <div class="admin-row">
-                    <span>2025-12-04 18:00</span>
-                    <span>System</span>
-                    <span>每日备份</span>
-                    <span style="color:green">完成</span>
-                </div>
-            </div>
-        </div>
+        </a>
     </div>
 </div>
-
-<script>
-    // 页面切换逻辑
-    function showPage(pageId) {
-        // 隐藏所有部分
-        document.getElementById('mainMenu').style.display = 'none';
-        document.getElementById('guidePage').classList.remove('active');
-        document.getElementById('contactPage').classList.remove('active');
-        document.getElementById('adminPage').classList.remove('active');
-        document.getElementById('mainHeader').style.display = 'none';
-
-        if (pageId === 'mainMenu') {
-            document.getElementById('mainMenu').style.display = 'grid';
-            document.getElementById('mainHeader').style.display = 'block';
-        } else {
-            const page = document.getElementById(pageId);
-            if (page) {
-                page.style.display = 'block';
-                // 强制重绘以触发动画
-                void page.offsetWidth;
-                page.classList.add('active');
-            }
-        }
-    }
-
-    // 简单的管理员验证模拟
-    function checkAdmin() {
-        const pwd = prompt("请输入管理员密码 (演示密码: admin):");
-        if (pwd === 'admin') {
-            showPage('adminPage');
-        } else if (pwd !== null) {
-            alert("密码错误，访问拒绝。");
-        }
-    }
-
-    // 处理反馈提交
-    function handleFeedbackSubmit(event) {
-        event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-        
-        // 这里可以添加实际的提交逻辑
-        // 目前只是演示
-        alert('感谢您的反馈！我们会尽快处理您的请求。');
-        showPage('mainMenu');
-        form.reset();
-    }
-</script>
 {% endblock %}
+
