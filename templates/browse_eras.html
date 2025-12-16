@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}{{ page_title or '年代浏览' }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a class="back-link" href="{{ back_url or url_for('browse_eras') }}">&larr; 返回</a>
+</div>
+
+<div style="text-align: center; margin-bottom: 30px;">
+    <h2 style="font-size: 2rem; margin-bottom: 10px; font-weight: normal;">
+        {{ page_title or '年代浏览' }}
+    </h2>
+    <p style="color: #666; font-size: 0.95rem;">
+        请选择一个年代分类进入文物目录
+    </p>
+</div>
+
+<hr style="margin: 20px 0; border: none; border-top: 1px solid #ccc;">
+
+{% if eras %}
+<div class="catalog-grid">
+    {% for e in eras %}
+    <a href="{{ url_for('era_detail', era_key_str=e.era_key) }}" class="card">
+        <div class="card-image-wrapper">
+            {% if e.representative_image %}
+                <img src="{{ url_for('static', filename=e.representative_image) }}" alt="{{ e.title }}" class="card-image">
+            {% else %}
+                <div class="card-image" style="display:flex;align-items:center;justify-content:center;color:#999;">暂无图片</div>
+            {% endif %}
+        </div>
+        <div class="card-info">
+            <div class="card-title">{{ e.title }}</div>
+            <div class="card-date">共 {{ e.artifact_count }} 件</div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="no-results" style="text-align: center; padding: 60px 20px; color: #999;">
+    <p style="font-size: 1.2rem; margin-bottom: 10px;">暂无该分类数据</p>
+    <div style="margin-top: 30px;">
+        <a href="{{ back_url or url_for('browse_eras') }}" class="btn"
+           style="display: inline-block; padding: 12px 30px; text-decoration: none; color: var(--color-text); border: 1px solid var(--color-text);">
+            返回
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
