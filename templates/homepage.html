@@ -566,6 +566,22 @@
                 <div class="explore-text">按空间浏览</div>
             </a>
 
+        <!-- 4. 按年代浏览 -->
+            <a href="{{ url_for('browse_eras') }}" class="explore-item">
+                <div class="explore-bg">
+                    {% if era_images %}
+                        {% for img_path in era_images[:6] %}
+                        <div class="explore-bg-item" style="background-image: url('{{ url_for('static', filename=img_path) }}');"></div>
+                        {% endfor %}
+                    {% else %}
+                        {% for i in range(6) %}
+                        <div class="explore-bg-item" style="background-color: var(--c-lavender);"></div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+                <div class="explore-overlay"></div>
+                <div class="explore-text">按年代浏览</div>
+            </a>
         </div>
     </section>
 
