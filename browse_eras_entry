@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}按年代浏览{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a class="back-link" href="{{ url_for('homepage') }}">&larr; 返回首页</a>
+</div>
+
+<div style="text-align:center; margin-bottom: 30px;">
+    <h2 style="font-size: 2rem; margin-bottom: 10px; font-weight: normal;">按年代浏览</h2>
+    <p style="color:#666; font-size: 0.95rem;">先选择纪年体系（东方/西方），再进入年代分类</p>
+</div>
+
+<hr style="margin: 20px 0; border: none; border-top: 1px solid #ccc;">
+
+<div class="catalog-grid">
+    <a href="{{ url_for('browse_eras_east') }}" class="card" style="padding:60px 20px; text-align:center;">
+        <div style="font-size: 1.6rem;">东方纪年</div>
+        <div style="color:#666; margin-top:8px;">含朝代词（宋/明/清…）</div>
+    </a>
+
+    <a href="{{ url_for('browse_eras_west') }}" class="card" style="padding:60px 20px; text-align:center;">
+        <div style="font-size: 1.6rem;">西方纪年</div>
+        <div style="color:#666; margin-top:8px;">无朝代词（年份/世纪/CE/BCE…）</div>
+    </a>
+</div>
+{% endblock %}
