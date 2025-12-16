@@ -9,6 +9,141 @@ import pandas as pd
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from functools import wraps
+import re
+from urllib.parse import quote, unquote
+import re
+from urllib.parse import quote, unquote
+
+
+EAST_DYNASTY_KEYWORDS = [
+    "宋", "北宋", "南宋", "明", "清", "元", "唐", "汉", "秦", "晋", "隋",
+    "明至清", "明晚期至清早期"
+]
+
+def is_east_chronology(date_cn: str) -> bool:
+    """
+    有朝代/東亞紀年詞 → 东方纪年
+    其他（仅年份/世纪/CE/BCE/公元…）→ 西方纪年
+    """
+    if not date_cn:
+        return False
+    s = date_cn.strip()
+    return any(k in s for k in EAST_DYNASTY_KEYWORDS)
+
+
+def normalize_east_bucket(date_cn: str) -> str:
+    """
+    东方纪年桶：宋/明/清/明清/其他东
+    """
+    if not date_cn:
+        return "其他东"
+    s = date_cn.strip()
+
+    # 跨代先判斷
+    if "明至清" in s or "明晚期至清早期" in s:
+        return "明清"
+
+    # 宋（含北宋/南宋）
+    if "宋" in s:
+        return "宋"
+    if "明" in s:
+        return "明"
+    if "清" in s:
+        return "清"
+    return "其他东"
+
+
+def normalize_west_bucket(date_cn: str) -> str:
+    """
+    西方纪年桶：古代/中世纪/近世/近代/现代/其他西
+    這裡用「粗分」：按最早年份（或世纪）估計。
+    """
+    if not date_cn:
+        return "其他西"
+    s = date_cn.strip()
+
+    # BCE / 公元前：當成古代
+    if "公元前" in s or "BCE" in s or "BC" in s:
+        return "古代"
+
+    # 世纪：提取 "19世纪" 這種
+    m_cent = re.search(r"(\d{1,2})\s*世紀|(\d{1,2})\s*世纪", s)
+    if m_cent:
+        cent = int(m_cent.group(1) or m_cent.group(2))
+        # 5-15世纪：中世纪；16-18：近世；19：近代；20+：现代
+        if 5 <= cent <= 15:
+            return "中世纪"
+        if 16 <= cent <= 18:
+            return "近世"
+        if cent == 19:
+            return "近代"
+        if cent >= 20:
+            return "现代"
+        return "古代"
+
+    # 年份：抓第一個四位數（1707、1893、410 等）
+    m_year = re.search(r"(\d{3,4})", s)
+    if m_year:
+        y = int(m_year.group(1))
+        # 这里按“最早年份”粗分：<=500 古代；501-1500 中世纪；1501-1800 近世；1801-1914 近代；1915+ 现代
+        if y <= 500:
+            return "古代"
+        if 501 <= y <= 1500:
+            return "中世纪"
+        if 1501 <= y <= 1800:
+            return "近世"
+        if 1801 <= y <= 1914:
+            return "近代"
+        if y >= 1915:
+            return "现代"
+
+    return "其他西"
+
+
+def normalize_era_from_date_cn(date_cn: str):
+    """
+    返回 (system, bucket)
+    system: 东方纪年 / 西方纪年
+    bucket: 东方: 宋/明/清/明清/其他东
+            西方: 古代/中世纪/近世/近代/现代/其他西
+    """
+    if not date_cn:
+        return ("西方纪年", "其他西")
+
+    if is_east_chronology(date_cn):
+        return ("东方纪年", normalize_east_bucket(date_cn))
+    else:
+        return ("西方纪年", normalize_west_bucket(date_cn))
+
+
+def era_key(system: str, bucket: str) -> str:
+    """
+    生成 URL key：east__ming / west__modern 这种
+    """
+    sys_map = {"东方纪年": "east", "西方纪年": "west"}
+    bucket_map = {
+        # east
+        "宋": "song", "明": "ming", "清": "qing", "明清": "ming-qing", "其他东": "other-east",
+        # west
+        "古代": "ancient", "中世纪": "medieval", "近世": "early-modern", "近代": "modern", "现代": "contemporary", "其他西": "other-west"
+    }
+    return f"{sys_map.get(system, 'west')}__{bucket_map.get(bucket, 'other-west')}"
+
+
+def era_from_key(key: str):
+    """
+    反解 era_key → (system, bucket)
+    """
+    sys_rev = {"east": "东方纪年", "west": "西方纪年"}
+    bucket_rev = {
+        "song": "宋", "ming": "明", "qing": "清", "ming-qing": "明清", "other-east": "其他东",
+        "ancient": "古代", "medieval": "中世纪", "early-modern": "近世", "modern": "近代", "contemporary": "现代", "other-west": "其他西"
+    }
+    if "__" not in key:
+        return (None, None)
+    a, b = key.split("__", 1)
+    return (sys_rev.get(a), bucket_rev.get(b))
+
 
 # 文化描述映射（用于文化浏览页面）
 CULTURE_DESCRIPTIONS = {
@@ -793,6 +928,169 @@ def geography_detail(geography_id):
             conn.close()
         return render_template('error.html', 
                              error_message=f"数据库查询错误: {str(e)}"), 500
+
+@app.route('/eras')
+@app.route('/browse_eras')
+def browse_eras():
+    """
+    年代浏览入口页：只显示“东方纪年 / 西方纪年”
+    """
+    return render_template('browse_eras_entry.html')
+
+
+def _build_era_buckets():
+    """
+    从数据库抓 Date_CN + 代表图，然后按 (system, bucket) 统计数量与代表图。
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return None, (render_template('error.html',
+                                      error_message="无法连接到数据库。请检查数据库配置和连接状态。"), 500)
+    try:
+        cursor = conn.cursor(dictionary=True)
+        query = """
+            SELECT
+                a.Artifact_PK,
+                a.Date_CN AS date_text,
+                ANY_VALUE(iv.Local_Path) AS representative_image
+            FROM ARTIFACTS a
+            LEFT JOIN IMAGE_VERSIONS iv ON a.Artifact_PK = iv.Artifact_PK
+            WHERE a.Date_CN IS NOT NULL AND a.Date_CN != ''
+            GROUP BY a.Artifact_PK
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        buckets = {}
+        for r in rows:
+            system, bucket = normalize_era_from_date_cn(r.get('date_text', ''))
+            k = (system, bucket)
+            if k not in buckets:
+                buckets[k] = {"count": 0, "rep_img": None}
+            buckets[k]["count"] += 1
+            if buckets[k]["rep_img"] is None and r.get("representative_image"):
+                buckets[k]["rep_img"] = normalize_image_path(r["representative_image"])
+
+        cursor.close()
+        conn.close()
+        return buckets, None
+
+    except Error as e:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return None, (render_template('error.html', error_message=f"数据库查询错误: {str(e)}"), 500)
+
+
+@app.route('/browse_eras/east')
+def browse_eras_east():
+    buckets, err = _build_era_buckets()
+    if err:
+        return err
+
+    east_order = ["宋", "明", "清", "明清", "其他东"]
+    eras = []
+    for b in east_order:
+        k = ("东方纪年", b)
+        if k in buckets and buckets[k]["count"] > 0:
+            eras.append({
+                "era_key": era_key("东方纪年", b),
+                "title": b,
+                "artifact_count": buckets[k]["count"],
+                "representative_image": buckets[k]["rep_img"],
+                "description": f"东方纪年 · {b}"
+            })
+
+    return render_template(
+        'browse_eras.html',
+        page_title="东方纪年",
+        back_url=url_for('browse_eras'),
+        eras=eras
+    )
+
+
+@app.route('/browse_eras/west')
+def browse_eras_west():
+    buckets, err = _build_era_buckets()
+    if err:
+        return err
+
+    west_order = ["古代", "中世纪", "近世", "近代", "现代", "其他西"]
+    eras = []
+    for b in west_order:
+        k = ("西方纪年", b)
+        if k in buckets and buckets[k]["count"] > 0:
+            eras.append({
+                "era_key": era_key("西方纪年", b),
+                "title": b,
+                "artifact_count": buckets[k]["count"],
+                "representative_image": buckets[k]["rep_img"],
+                "description": f"西方纪年 · {b}"
+            })
+
+    return render_template(
+        'browse_eras.html',
+        page_title="西方纪年",
+        back_url=url_for('browse_eras'),
+        eras=eras
+    )
+@app.route('/era/<era_key_str>')
+def era_detail(era_key_str):
+    """
+    年代桶详情：显示该(东方/西方 + bucket)下的所有文物卡片
+    """
+    system, bucket = era_from_key(era_key_str)
+    if not system or not bucket:
+        abort(404)
+
+    conn = get_db_connection()
+    if conn is None:
+        return render_template('error.html',
+                               error_message="无法连接到数据库。请检查数据库配置和连接状态。"), 500
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        query = """
+            SELECT
+                a.Artifact_PK AS artifact_id,
+                a.Title_CN AS title,
+                a.Date_CN AS date_text,
+                ANY_VALUE(iv.Local_Path) AS local_path
+            FROM ARTIFACTS a
+            LEFT JOIN IMAGE_VERSIONS iv ON a.Artifact_PK = iv.Artifact_PK
+            WHERE a.Date_CN IS NOT NULL AND a.Date_CN != ''
+            GROUP BY a.Artifact_PK
+            ORDER BY a.Artifact_PK DESC
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        artifacts = []
+        for r in rows:
+            sys2, bucket2 = normalize_era_from_date_cn(r.get("date_text", ""))
+            if sys2 != system or bucket2 != bucket:
+                continue
+            if r.get("local_path"):
+                r["local_path"] = normalize_image_path(r["local_path"])
+            artifacts.append(r)
+
+        cursor.close()
+        conn.close()
+
+        return render_template(
+            'era_detail.html',
+            era={"system": system, "bucket": bucket, "era_key": era_key_str},
+            artifacts=artifacts
+        )
+
+    except Error as e:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return render_template('error.html', error_message=f"数据库查询错误: {str(e)}"), 500
+
 
 # ========== 用户认证相关函数 ==========
 
